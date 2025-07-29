@@ -7,3 +7,9 @@ New Features:
 - `K8s().Scale()` - Scale a scalable resource like a Deployment.
 - `K8s().Proxy()` - Proxy to a specific port of a pod.
 - `K8s().Finalize()` - Manage finalizers for Kubernetes resources.
+
+Run the demo by executing the following command:
+
+```bash
+npm run demo
+```
