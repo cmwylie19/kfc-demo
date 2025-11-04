@@ -78,6 +78,11 @@ const start = async () => {
     .InNamespace(namespace)
     .Get(`${name}-deployment`);
   console.log(`Deployment now has ${deploy.spec?.replicas} replicas.\n`);
+
+  const logs = await K8s(kind.Pod)
+    .InNamespace(namespace)
+    .Logs(name);
+  console.log(`Pod logs:\n ${logs}.\n`);
 };
 
 const end = async () => {
