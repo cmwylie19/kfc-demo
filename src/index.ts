@@ -1,7 +1,4 @@
-import {
-  kind,
-  K8s,
-} from "kubernetes-fluent-client";
+import { kind, K8s } from "kubernetes-fluent-client";
 import { waitForRunningStatusPhase } from "./helpers";
 
 const namespace = "kfc-features";
@@ -10,7 +7,17 @@ const name = "kfc-features-pod";
 const start = async () => {
   // Create a namespace
   console.log(`K8s().Apply() - Creating namespace: ${namespace}.\n`);
+  // Create a namespace
   await K8s(kind.Namespace).Apply({ metadata: { name: namespace } });
+  // // Read a namespace
+  // const ns = await K8s(kind.Namespace).Get(namespace);
+  // console.log(`Namespace ${namespace} details:\n`, ns);
+  // // Update a namespace
+  // await K8s(kind.Namespace).Apply({
+  //   metadata: { name: namespace, labels: { demo: namespace } },
+  // });
+  // // Delete a namespace
+  // await K8s(kind.Namespace).Delete({ metadata: { name: namespace } });
 
   // Create an nginx pod in the created namespace
   console.log(
@@ -21,7 +28,7 @@ const start = async () => {
       metadata: { name, namespace },
       spec: { containers: [{ name: "nginx", image: "nginx:latest" }] },
     },
-    { force: true },
+    { force: true }, // Override field manager SSA
   );
 
   // Add a finalizer to the Pod after it is created
@@ -32,6 +39,29 @@ const start = async () => {
     .InNamespace(namespace)
     .Finalize("add", "defenseunicorns.com/finalizer", name);
   const pod = await K8s(kind.Pod).InNamespace(namespace).Get(name);
+
+  // Patch the status of the Pod to add a custom condition
+  console.log(
+    `K8s().PatchStatus() - Patching status of pod: ${name} to add custom condition.\n`,
+  );
+  await K8s(kind.Pod).PatchStatus({
+    metadata: pod.metadata,
+    spec: pod.spec,
+    status: {
+      ...pod.status,
+      conditions: [
+        ...(pod.status?.conditions || []),
+        {
+          type: "DemoCondition",
+          status: "True",
+          reason: "DemoReason",
+          message: "This is a demo condition added by KFC.",
+          lastProbeTime: new Date(),
+          lastTransitionTime: new Date(),
+        },
+      ],
+    },
+  });
 
   console.log(`Pod finalizers : ${pod.metadata?.finalizers}.\n`);
   await waitForRunningStatusPhase(kind.Pod, {
@@ -79,9 +109,7 @@ const start = async () => {
     .Get(`${name}-deployment`);
   console.log(`Deployment now has ${deploy.spec?.replicas} replicas.\n`);
 
-  const logs = await K8s(kind.Pod)
-    .InNamespace(namespace)
-    .Logs(name);
+  const logs = await K8s(kind.Pod).InNamespace(namespace).Logs(name);
   console.log(`Pod logs:\n ${logs}.\n`);
 };
 
@@ -93,6 +121,12 @@ const end = async () => {
   await K8s(kind.Pod)
     .InNamespace(namespace)
     .Finalize("remove", "defenseunicorns.com/finalizer", name);
+
+  // Evict the nginx pod
+  console.log(
+    `K8s().Evict() - Evicting pod: ${name} in namespace: ${namespace}.\n`,
+  );
+  await K8s(kind.Pod).InNamespace(namespace).Evict({ metadata: { name } });
 
   // Delete the namespace
   console.log(`K8s().Delete() - Deleting namespace: ${namespace}.\n`);
@@ -113,3 +147,11 @@ demo().catch((error) => {
   console.error("Unexpected error:", error);
 });
 
+// One off commands
+// (async () => {
+//     console.log(`K8s().Proxy() - Proxying to port 80 of the pod: ${name}.\n`);
+//   const nginxHome = await K8s(kind.Pod)
+//     .InNamespace(namespace)
+//     .Proxy(name, "80");
+//   console.log(`Port 80 proxy results:\n ${nginxHome}.\n`);
+// })();

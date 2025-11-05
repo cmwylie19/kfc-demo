@@ -1,8 +1,4 @@
-import {
-  K8s,
-  GenericClass,
-  KubernetesObject,
-} from "kubernetes-fluent-client";
+import { K8s, GenericClass, KubernetesObject } from "kubernetes-fluent-client";
 
 export async function waitForRunningStatusPhase(
   k: GenericClass,
